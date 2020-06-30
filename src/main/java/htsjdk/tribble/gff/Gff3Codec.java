@@ -17,6 +17,7 @@ import htsjdk.tribble.util.ParsingUtils;
 
 
 import java.io.*;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,12 +68,18 @@ public class Gff3Codec extends AbstractFeatureCodec<Gff3Feature, LineIterator> {
     private final Map<String, Set<Gff3FeatureImpl>> activeParentIDs = new HashMap<>();
 
     private final Map<String, SequenceRegion> sequenceRegionMap = new HashMap<>();
+    private final Gff3FeatureEvaluator featureEvaluator = new Gff3FeatureEvaluator();
 
     private final static Log logger = Log.getInstance(Gff3Codec.class);
 
     private boolean reachedFasta = false;
 
     private DecodeDepth decodeDepth;
+
+    private boolean validateSequenceRegions = true;
+    private boolean validateCDSPhase = true;
+    private boolean validateTypes = true;
+    private boolean validateParents = true;
 
     private int currentLine = 0;
 
@@ -83,6 +90,42 @@ public class Gff3Codec extends AbstractFeatureCodec<Gff3Feature, LineIterator> {
     public Gff3Codec(final DecodeDepth decodeDepth) {
         super(Gff3Feature.class);
         this.decodeDepth = decodeDepth;
+    }
+
+    public Gff3FeatureEvaluator getFeatureEvaluator() {
+        return featureEvaluator;
+    }
+
+    public boolean isValidateSequenceRegions() {
+        return validateSequenceRegions;
+    }
+
+    public void setValidateSequenceRegions(boolean validateSequenceRegions) {
+        this.validateSequenceRegions = validateSequenceRegions;
+    }
+
+    public boolean isValidateCDSPhase() {
+        return validateCDSPhase;
+    }
+
+    public void setValidateCDSPhase(boolean validateCDSPhase) {
+        this.validateCDSPhase = validateCDSPhase;
+    }
+
+    public boolean isValidateTypes() {
+        return validateTypes;
+    }
+
+    public void setValidateTypes(boolean validateTypes) {
+        this.validateTypes = validateTypes;
+    }
+
+    public boolean isValidateParents() {
+        return validateParents;
+    }
+
+    public void setValidateParents(boolean validateParents) {
+        this.validateParents = validateParents;
     }
 
     public enum DecodeDepth {
@@ -175,7 +218,7 @@ public class Gff3Codec extends AbstractFeatureCodec<Gff3Feature, LineIterator> {
             }
         }
 
-        validateFeature(thisFeature);
+        validateFeatureShallow(thisFeature);
         if (depth == DecodeDepth.SHALLOW) {
             //flush all features immediatly
             prepareToFlushFeatures();
@@ -229,12 +272,26 @@ public class Gff3Codec extends AbstractFeatureCodec<Gff3Feature, LineIterator> {
     }
 
     /**
-     * If sequence region of feature's contig has been specified with sequence region directive, validates that
-     * feature's coordinates are within the specified sequence region.  TribbleException is thrown if invalid.
+     * Perform validations which do not require full linking information of feature.  The following are checked.
+     *  1) The type of the feature is valid
+     *  2) If the feature is a CDS type, it's phase is defined
+     *  3) If sequence region has been defined, check that this feature is contained within its sequence region
+     *  TribbleException is thrown if invalid.
      * @param feature
      */
-    private void validateFeature(final Gff3Feature feature) {
-        if (sequenceRegionMap.containsKey(feature.getContig())) {
+    private void validateFeatureShallow(final Gff3Feature feature) {
+        //check is valid feature type
+        if (validateTypes && !featureEvaluator.isValidType(feature.getType())) {
+            throw new TribbleException("feature at type " + feature.getType() + " is not a valid type.");
+        }
+
+        //if CDS, check that phase is defined
+        if (validateCDSPhase && feature.getType().equals("CDS") && feature.getPhase() < 0) {
+            throw new TribbleException("Feature " + feature.getID() + " is type CDS but does not have a defined phase");
+        }
+
+        //check that contained in sequence region if specified
+        if (validateSequenceRegions && sequenceRegionMap.containsKey(feature.getContig())) {
             final SequenceRegion region = sequenceRegionMap.get(feature.getContig());
             if (feature.getStart() == region.getStart() && feature.getEnd() == region.getEnd()) {
                 //landmark feature
@@ -244,6 +301,24 @@ public class Gff3Codec extends AbstractFeatureCodec<Gff3Feature, LineIterator> {
             if (region.isCircular()? !region.overlaps(feature) : !region.contains(feature)) {
                 throw new TribbleException("feature at " + feature.getContig() + ":" + feature.getStart() + "-" + feature.getEnd() +
                         " not contained in specified sequence region (" + region.getContig() + ":" + region.getStart() + "-" + region.getEnd());
+            }
+        }
+    }
+
+    /**
+     * Perform validations which require full linking information of feature.  The following are checked.
+     *  1) The type of the feature has a part_of relationship with the type of any parent features
+     *  TribbleException is thrown if invalid.
+     * @param feature
+     */
+    private void validatedFeatureDeep(final Gff3Feature feature) {
+        if (validateParents) {
+            final String type = feature.getType();
+
+            for (final Gff3Feature parent : feature.getParents()) {
+                if (!featureEvaluator.isPartOf(type, parent.getType())) {
+                    throw new TribbleException("feature " + feature.getID() + " of type " + type + " has parent " + parent.getID() + " of type " + parent.getType() + ", but parent-child relationship is not valid for these types.");
+                }
             }
         }
     }
@@ -376,6 +451,10 @@ public class Gff3Codec extends AbstractFeatureCodec<Gff3Feature, LineIterator> {
                 reachedFasta = true;
                 break;
 
+            case FEATURE_ONTOLOGY_DIRECTIVE:
+                final URL ontologyUrl = (URL) decodedResult;
+                featureEvaluator.addOntology(ontologyUrl);
+                break;
             default:
                 throw new IllegalArgumentException( "Directive " + directive + " has been added to Gff3Directive, but is not being handled by Gff3Codec::processDirective.  This is a BUG.");
 
@@ -386,6 +465,9 @@ public class Gff3Codec extends AbstractFeatureCodec<Gff3Feature, LineIterator> {
      * move active top level features to featuresToFlush.  clear active features.
      */
     private void prepareToFlushFeatures() {
+        if (decodeDepth == DecodeDepth.DEEP) {
+            activeFeatures.forEach(this::validatedFeatureDeep);
+        }
         featuresToFlush.addAll(activeFeatures);
         activeFeaturesWithIDs.clear();
         activeFeatures.clear();
@@ -445,7 +527,18 @@ public class Gff3Codec extends AbstractFeatureCodec<Gff3Feature, LineIterator> {
 
         FLUSH_DIRECTIVE("###$"),
 
-        FASTA_DIRECTIVE("##FASTA$");
+        FASTA_DIRECTIVE("##FASTA$"),
+
+        FEATURE_ONTOLOGY_DIRECTIVE("##feature-ontology\\s+\\S+") {
+            @Override
+            public Object decode(final String line) throws IOException {
+                final String[] splitLine = line.split("\\s+");
+                if (splitLine.length != 2) {
+                    throw new IOException("Cannot parse feature ontology directive " + line + ", contains wrong number of fields.");
+                }
+                return new URL(splitLine[1]);
+            }
+        };
 
         private final Pattern regexPattern;
 

@@ -45,20 +45,22 @@ public class Gff3CodecTest extends HtsjdkTest {
     @DataProvider(name = "basicDecodeDataProvider")
     Object[][] basicDecodeDataProvider() {
         return new Object[][]{
-                {ensembl_human_small, 82},
-                {gencode_mouse_small, 70},
-                {ncbi_woodpecker_small, 185},
-                {with_fasta, 12},
-                {with_fasta_artemis, 12},
-                {ordered_cofeature, 4},
-                {child_before_parent, 2}
+                {ensembl_human_small, 82, false},
+                {gencode_mouse_small, 70, true},
+                {ncbi_woodpecker_small, 185, true},
+                {with_fasta, 12, true},
+                {with_fasta_artemis, 12, true},
+                {ordered_cofeature, 4, true},
+                {child_before_parent, 2, true}
         };
     }
 
     @Test(dataProvider = "basicDecodeDataProvider")
-    public void basicDecodeTest(final Path inputGff3, final int expectedTotalFeatures) throws IOException {
-        Assert.assertTrue((new Gff3Codec()).canDecode(inputGff3.toAbsolutePath().toString()));
-        final AbstractFeatureReader<Gff3Feature, LineIterator> reader = AbstractFeatureReader.getFeatureReader(inputGff3.toAbsolutePath().toString(), null, new Gff3Codec(), false);
+    public void basicDecodeTest(final Path inputGff3, final int expectedTotalFeatures, final boolean validateParents) throws IOException {
+        final Gff3Codec codec = new Gff3Codec();
+        codec.setValidateParents(validateParents);
+        Assert.assertTrue(codec.canDecode(inputGff3.toAbsolutePath().toString()));
+        final AbstractFeatureReader<Gff3Feature, LineIterator> reader = AbstractFeatureReader.getFeatureReader(inputGff3.toAbsolutePath().toString(), null, codec, false);
         int countTotalFeatures = 0;
         for (final Gff3Feature feature : reader.iterator()) {
             countTotalFeatures++;
@@ -68,9 +70,11 @@ public class Gff3CodecTest extends HtsjdkTest {
     }
 
     @Test(dataProvider = "basicDecodeDataProvider")
-    public void basicShallowDecodeTest(final Path inputGff3, final int expectedTotalFeatures) throws IOException {
-        Assert.assertTrue((new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW)).canDecode(inputGff3.toAbsolutePath().toString()));
-        final AbstractFeatureReader<Gff3Feature, LineIterator> reader = AbstractFeatureReader.getFeatureReader(inputGff3.toAbsolutePath().toString(), null, new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW), false);
+    public void basicShallowDecodeTest(final Path inputGff3, final int expectedTotalFeatures, final boolean validateParents) throws IOException {
+        final Gff3Codec codec = new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW);
+        codec.setValidateParents(validateParents);
+        Assert.assertTrue(codec.canDecode(inputGff3.toAbsolutePath().toString()));
+        final AbstractFeatureReader<Gff3Feature, LineIterator> reader = AbstractFeatureReader.getFeatureReader(inputGff3.toAbsolutePath().toString(), null, codec, false);
         int countTotalFeatures = 0;
         for (final Gff3Feature feature : reader.iterator()) {
             countTotalFeatures++;
@@ -88,21 +92,26 @@ public class Gff3CodecTest extends HtsjdkTest {
     @DataProvider(name = "testGZippedDataProvider")
     Object[][] testGZippedDataProvider(){
         return new Object[][] {
-                {ensembl_human_small, ensembl_human_small_gzipped},
-                {gencode_mouse_small, gencode_mouse_small_gzipped},
-                {ncbi_woodpecker_small, ncbi_woodpecker_small_gzipped},
-                {with_fasta, with_fasta_gzipped},
-                {with_fasta_artemis, with_fasta_artemis_gzipped}
+                {ensembl_human_small, ensembl_human_small_gzipped, false},
+                {gencode_mouse_small, gencode_mouse_small_gzipped, true},
+                {ncbi_woodpecker_small, ncbi_woodpecker_small_gzipped, true},
+                {with_fasta, with_fasta_gzipped, true},
+                {with_fasta_artemis, with_fasta_artemis_gzipped, true}
         };
     }
 
     @Test(dataProvider = "testGZippedDataProvider")
-    public void testGZipped(final Path inputGff3, final Path inputGff3GZipped) throws IOException {
-        Assert.assertTrue((new Gff3Codec()).canDecode(inputGff3.toAbsolutePath().toString()));
-        Assert.assertTrue((new Gff3Codec()).canDecode(inputGff3GZipped.toAbsolutePath().toString()));
+    public void testGZipped(final Path inputGff3, final Path inputGff3GZipped, final boolean validateParents) throws IOException {
+        final Gff3Codec codec = new Gff3Codec();
+        codec.setValidateParents(validateParents);
+        final Gff3Codec codecGzipped = new Gff3Codec();
+        codec.setValidateParents(validateParents);
 
-        final AbstractFeatureReader<Gff3Feature, LineIterator> reader = AbstractFeatureReader.getFeatureReader(inputGff3.toAbsolutePath().toString(), null, new Gff3Codec(), false);
-        final AbstractFeatureReader<Gff3Feature, LineIterator> readerGZipped = AbstractFeatureReader.getFeatureReader(inputGff3GZipped.toAbsolutePath().toString(), null, new Gff3Codec(), false);
+        Assert.assertTrue(codec.canDecode(inputGff3.toAbsolutePath().toString()));
+        Assert.assertTrue(codecGzipped.canDecode(inputGff3GZipped.toAbsolutePath().toString()));
+
+        final AbstractFeatureReader<Gff3Feature, LineIterator> reader = AbstractFeatureReader.getFeatureReader(inputGff3.toAbsolutePath().toString(), null, codec, false);
+        final AbstractFeatureReader<Gff3Feature, LineIterator> readerGZipped = AbstractFeatureReader.getFeatureReader(inputGff3GZipped.toAbsolutePath().toString(), null, codecGzipped, false);
 
 
         final Set<Gff3Feature> topLevelFeatures = new HashSet<>();
@@ -120,9 +129,14 @@ public class Gff3CodecTest extends HtsjdkTest {
     }
 
     @Test(dataProvider = "testGZippedDataProvider")
-    public void testGZippedShallow(final Path inputGff3, final Path inputGff3GZipped) throws IOException {
-        Assert.assertTrue((new Gff3Codec()).canDecode(inputGff3.toAbsolutePath().toString()));
-        Assert.assertTrue((new Gff3Codec()).canDecode(inputGff3GZipped.toAbsolutePath().toString()));
+    public void testGZippedShallow(final Path inputGff3, final Path inputGff3GZipped, final boolean validateParents) throws IOException {
+        final Gff3Codec codec = new Gff3Codec();
+        codec.setValidateParents(validateParents);
+        final Gff3Codec codecGzipped = new Gff3Codec();
+        codec.setValidateParents(validateParents);
+
+        Assert.assertTrue(codec.canDecode(inputGff3.toAbsolutePath().toString()));
+        Assert.assertTrue(codecGzipped.canDecode(inputGff3GZipped.toAbsolutePath().toString()));
 
         final AbstractFeatureReader<Gff3Feature, LineIterator> reader = AbstractFeatureReader.getFeatureReader(inputGff3.toAbsolutePath().toString(), null, new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW), false);
         final AbstractFeatureReader<Gff3Feature, LineIterator> readerGZipped = AbstractFeatureReader.getFeatureReader(inputGff3GZipped.toAbsolutePath().toString(), null, new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW), false);
