@@ -10,7 +10,7 @@
 NW_009661377.1	RefSeq	region	1	140638	.	+	.	ID=id0;Dbxref=taxon:118200;Name=Unknown;chromosome=Unknown;country=USA;gbkey=Src;genome=genomic;isolate=BGI_N307;mol_type=genomic DNA;sex=female
 NW_009661377.1	Gnomon	gene	5320	25085	.	+	.	ID=gene0;Dbxref=GeneID:104296158;Name=MED24;end_range=25085,.;gbkey=Gene;gene=MED24;partial=true
 NW_009661377.1	Gnomon	mRNA	5320	25085	.	+	.	ID=rna0;Parent=gene0;Dbxref=GeneID:104296158,Genbank:XM_009896312.1;Name=XM_009896312.1;end_range=25085,.;gbkey=mRNA;gene=MED24;partial=true;product=mediator complex subunit 24;transcript_id=XM_009896312.1
-NW_009661377.1	Gnomon	exon	5320	5449	.	+	.	ID=id1;Parent=rna0;Dbxref=GeneID:104296158,Genbank:XM_009896312.1;gbkey=mRNA;gene=MED24;partial=true;product=mediator complex subunit 24;transcript_id=XM_009896312.1
+NW_009661377.1	Gnomon	gene	5320	5449	.	+	.	ID=id1;Parent=rna0;Dbxref=GeneID:104296158,Genbank:XM_009896312.1;gbkey=mRNA;gene=MED24;partial=true;product=mediator complex subunit 24;transcript_id=XM_009896312.1
 NW_009661377.1	Gnomon	exon	8372	8449	.	+	.	ID=id2;Parent=rna0;Dbxref=GeneID:104296158,Genbank:XM_009896312.1;gbkey=mRNA;gene=MED24;partial=true;product=mediator complex subunit 24;transcript_id=XM_009896312.1
 NW_009661377.1	Gnomon	exon	10696	10813	.	+	.	ID=id3;Parent=rna0;Dbxref=GeneID:104296158,Genbank:XM_009896312.1;gbkey=mRNA;gene=MED24;partial=true;product=mediator complex subunit 24;transcript_id=XM_009896312.1
 NW_009661377.1	Gnomon	exon	11872	12095	.	+	.	ID=id4;Parent=rna0;Dbxref=GeneID:104296158,Genbank:XM_009896312.1;gbkey=mRNA;gene=MED24;partial=true;product=mediator complex subunit 24;transcript_id=XM_009896312.1

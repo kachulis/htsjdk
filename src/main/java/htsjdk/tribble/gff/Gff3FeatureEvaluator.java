@@ -105,8 +105,19 @@ public class Gff3FeatureEvaluator {
         OWLClassExpression cls = df.getOWLObjectSomeValuesFrom(partOfProperty, cls2);
 
         final OWLAxiom isSubClassOfAxiom = df.getOWLSubClassOfAxiom(cls1, cls);
-        df.getOWLO
-        return reasoner.isEntailed(isSubClassOfAxiom);
+        if (type1.equals("gene") && type2.equals("mRNA")) {
+            System.out.println("hi");
+        }
+        final OWLIndividual ind = df.getOWLNamedIndividual(IRI.create("testIndividual"));
+        final OWLClassAssertionAxiom ax1 = df.getOWLClassAssertionAxiom(cls1, ind);
+        final OWLIndividual ind2 = df.getOWLNamedIndividual(IRI.create("testIndividual2"));
+        final OWLClassAssertionAxiom ax2 = df.getOWLClassAssertionAxiom(cls2, ind2);
+        ontology.addAxioms(ax1, ax2);
+        final OWLIndividualAxiom ax = df.getOWLObjectPropertyAssertionAxiom(partOfProperty, ind, ind2);
+        ontology.addAxiom(ax);
+
+        reasoner.flush();
+        return reasoner.isConsistent();
     }
 
     public boolean isValidType(final String type) {
