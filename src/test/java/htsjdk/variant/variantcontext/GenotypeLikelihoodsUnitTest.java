@@ -32,11 +32,16 @@ package htsjdk.variant.variantcontext;
 import htsjdk.tribble.TribbleException;
 import htsjdk.variant.VariantBaseTest;
 import htsjdk.variant.utils.GeneralUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import scala.Int;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -44,6 +49,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 
 /**
@@ -373,6 +379,32 @@ public class GenotypeLikelihoodsUnitTest extends VariantBaseTest {
                 {1988400, 12, Arrays.asList(0,0,0,0,0,1,3,8,11,11,11,12)},
                 {8573,7, Arrays.asList(3,3,5,6,6,8,9)}
         };
+    }
+
+    @Test
+    public void performanceTest() {
+        final Random rand = new Random(1);
+
+        final List<Pair<Integer, Integer>> pairs = new ArrayList<>();
+
+        final int maxPLIndex=10;
+        final int maxPloidy=10;
+        for (int i = 0; i<1000; i++) {
+            final int ploidy = rand.nextInt(maxPloidy - 1) + 1;
+            for (int j =0; j<1000; j++) {
+                pairs.add(Pair.of(rand.nextInt(maxPLIndex), ploidy));
+            }
+        }
+
+        final Instant start = Instant.now();
+
+        for (final Pair<Integer, Integer> pair : pairs) {
+            GenotypeLikelihoods.getAlleles(pair.getLeft(), pair.getRight());
+        }
+
+        final Instant end = Instant.now();
+
+        System.out.println("time to run: " + Duration.between(start, end).toMillis());
     }
 
     @Test(dataProvider = "testGetAllelesData")
