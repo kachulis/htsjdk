@@ -374,15 +374,15 @@ public class GenotypeLikelihoodsUnitTest extends VariantBaseTest {
         final List<Integer> altAllelesList = new ArrayList<>();
         final List<List<Integer>> plIndexLists = new ArrayList<>();
 
-        final int maxAltAlleles=10;
+        final int maxAltAlleles=5;
         final int maxPloidy=10;
         for (int i = 0; i<1000; i++) {
-            final int ploidy = rand.nextInt(maxPloidy - 1) + 1;
+            final int ploidy = rand.nextInt(maxPloidy - 1) + 2;
             ploidyList.add(ploidy);
-            final int altAlleles = rand.nextInt(maxAltAlleles - 1) + 1;
+            final int altAlleles = rand.nextInt(maxAltAlleles - 1) + 2;
             altAllelesList.add(altAlleles);
             plIndexLists.add(new ArrayList<>());
-            for (int j =0; j<1000; j++) {
+            for (int j =0; j<100000; j++) {
                 int maxPLIndex = 0;
                 for (int k =1; k<=ploidy; k++) {
                     maxPLIndex+= Math.toIntExact(BinomialCoefficientUtil.binomialCoefficient(altAlleles + k - 1, k));
