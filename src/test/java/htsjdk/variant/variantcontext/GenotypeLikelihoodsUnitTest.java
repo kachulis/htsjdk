@@ -31,6 +31,7 @@ package htsjdk.variant.variantcontext;
 
 import htsjdk.tribble.TribbleException;
 import htsjdk.variant.VariantBaseTest;
+import htsjdk.variant.utils.BinomialCoefficientUtil;
 import htsjdk.variant.utils.GeneralUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
@@ -385,26 +386,40 @@ public class GenotypeLikelihoodsUnitTest extends VariantBaseTest {
     public void performanceTest() {
         final Random rand = new Random(1);
 
-        final List<Pair<Integer, Integer>> pairs = new ArrayList<>();
+        final List<Integer> ploidyList = new ArrayList<>();
+        final List<Integer> altAllelesList = new ArrayList<>();
+        final List<List<Integer>> plIndexLists = new ArrayList<>();
 
-        final int maxPLIndex=10;
+        final int maxAltAlleles=10;
         final int maxPloidy=10;
         for (int i = 0; i<1000; i++) {
             final int ploidy = rand.nextInt(maxPloidy - 1) + 1;
+            ploidyList.add(ploidy);
+            final int altAlleles = rand.nextInt(maxAltAlleles - 1) + 1;
+            altAllelesList.add(altAlleles);
+            plIndexLists.add(new ArrayList<>());
             for (int j =0; j<1000; j++) {
-                pairs.add(Pair.of(rand.nextInt(maxPLIndex), ploidy));
+                int maxPLIndex = 0;
+                for (int k =1; k<=ploidy; k++) {
+                    maxPLIndex+= Math.toIntExact(BinomialCoefficientUtil.binomialCoefficient(altAlleles + k - 1, k));
+                }
+                plIndexLists.get(i).add(rand.nextInt(maxPLIndex));
             }
         }
 
         final Instant start = Instant.now();
 
-        for (final Pair<Integer, Integer> pair : pairs) {
-            GenotypeLikelihoods.getAlleles(pair.getLeft(), pair.getRight());
+        for (int i = 0; i < ploidyList.size(); i++) {
+            final int ploidy = ploidyList.get(i);
+            final List<Integer> plIndexList = plIndexLists.get(i);
+            for (int j=0; j< plIndexList.size(); j++) {
+                GenotypeLikelihoods.getAlleles(plIndexList.get(j), ploidy);
+            }
         }
 
         final Instant end = Instant.now();
 
-        System.out.println("time to run: " + Duration.between(start, end).toMillis());
+        System.out.println("time to run: " + Duration.between(start, end).toMillis() + " ms");
     }
 
     @Test(dataProvider = "testGetAllelesData")
