@@ -370,15 +370,12 @@ public class GenotypeLikelihoodsUnitTest extends VariantBaseTest {
     public void performanceTest() {
         final Random rand = new Random(1);
 
-        final List<Integer> ploidyList = new ArrayList<>();
         final List<Integer> altAllelesList = new ArrayList<>();
         final List<List<Integer>> plIndexLists = new ArrayList<>();
 
         final int maxAltAlleles=5;
-        final int maxPloidy=10;
+        final int ploidy=2;
         for (int i = 0; i<1000; i++) {
-            final int ploidy = rand.nextInt(maxPloidy - 1) + 2;
-            ploidyList.add(ploidy);
             final int altAlleles = rand.nextInt(maxAltAlleles - 1) + 2;
             altAllelesList.add(altAlleles);
             plIndexLists.add(new ArrayList<>());
@@ -393,8 +390,7 @@ public class GenotypeLikelihoodsUnitTest extends VariantBaseTest {
 
         final Instant start = Instant.now();
 
-        for (int i = 0; i < ploidyList.size(); i++) {
-            final int ploidy = ploidyList.get(i);
+        for (int i = 0; i < altAllelesList.size(); i++) {
             GenotypeLikelihoods.initializeAnyploidPLIndexToAlleleIndices(altAllelesList.get(i), ploidy);
             final List<Integer> plIndexList = plIndexLists.get(i);
             for (int j=0; j< plIndexList.size(); j++) {
